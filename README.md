@@ -3,9 +3,7 @@ claude, chatgpt, gemini, codex, deepseek, github copilot and claude code are com
 
 ---
 
-You can visit the websites for games created:
-- chatgpt https://arsenii13.github.io/ai-competition/chatgpt.html
-- claude https://arsenii13.github.io/ai-competition/claude.html (we are working on better web integration and part 3 of the code)
+Read more on our wiki https://github.com/Arsenii13/ai-competition/wiki
 
 ---
 
