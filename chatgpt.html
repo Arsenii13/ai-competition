@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Minecraft Core</title>
+<style>
+body { margin:0; overflow:hidden; background:#000; }
+#crosshair {
+  position:fixed; top:50%; left:50%;
+  width:8px; height:8px;
+  margin:-4px;
+  background:white;
+}
+</style>
+</head>
+<body>
+<div id="crosshair"></div>
+
+<canvas id="c"></canvas>
+
+<script>
+// === CANVAS ===
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+// === CAMERA ===
+let cam = { x:0, y:12, z:0, yaw:0, pitch:0 };
+let vel = { x:0, y:0, z:0 };
+
+// === INPUT ===
+const keys = {};
+onkeydown = e => keys[e.code]=true;
+onkeyup = e => keys[e.code]=false;
+
+canvas.onclick = () => canvas.requestPointerLock();
+
+onmousemove = e=>{
+  if(document.pointerLockElement===canvas){
+    cam.yaw -= e.movementX * 0.002;
+    cam.pitch -= e.movementY * 0.002;
+    cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch));
+  }
+};
+
+// === WORLD ===
+const world = new Map();
+
+function key(x,y,z){ return `${x},${y},${z}`; }
+
+function addBlock(x,y,z,type){
+  world.set(key(x,y,z), {x,y,z,type});
+}
+
+// === TERRAIN ===
+for(let x=-30;x<30;x++){
+  for(let z=-30;z<30;z++){
+    let h = Math.floor(Math.sin(x*0.2)+Math.cos(z*0.2))*2+6;
+
+    for(let y=0;y<h;y++){
+      let t="dirt";
+      if(y===h-1) t="grass";
+      if(y<h-3) t="stone";
+      addBlock(x,y,z,t);
+    }
+  }
+}
+
+// === COLORS ===
+const colors = {
+  grass:"#55aa33",
+  dirt:"#8b4513",
+  stone:"#888"
+};
+
+// === PROJECTION ===
+const FOV = 400;
+
+function project(x,y,z){
+  let dx=x-cam.x, dy=y-cam.y, dz=z-cam.z;
+
+  let cy=Math.cos(cam.yaw), sy=Math.sin(cam.yaw);
+  let cp=Math.cos(cam.pitch), sp=Math.sin(cam.pitch);
+
+  let xz = cy*dx - sy*dz;
+  let zz = sy*dx + cy*dz;
+
+  let yz = cp*dy - sp*zz;
+  let zz2 = sp*dy + cp*zz;
+
+  if(zz2<=0) return null;
+
+  return {
+    x: canvas.width/2 + xz*FOV/zz2,
+    y: canvas.height/2 + yz*FOV/zz2,
+    d: zz2
+  };
+}
+
+// === RENDER ===
+function draw(){
+  ctx.fillStyle="#87CEEB";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  let arr = [...world.values()];
+
+  arr.sort((a,b)=>{
+    let da=(a.x-cam.x)**2+(a.y-cam.y)**2+(a.z-cam.z)**2;
+    let db=(b.x-cam.x)**2+(b.y-cam.y)**2+(b.z-cam.z)**2;
+    return db-da;
+  });
+
+  for(let b of arr){
+    let p = project(b.x,b.y,b.z);
+    if(!p) continue;
+
+    let size = FOV / p.d;
+
+    ctx.fillStyle = colors[b.type];
+    ctx.fillRect(p.x, p.y, size, size);
+  }
+}
+
+// === PHYSICS ===
+function update(dt){
+  let speed = 6;
+
+  let mx=(keys["KeyD"]?1:0)-(keys["KeyA"]?1:0);
+  let mz=(keys["KeyS"]?1:0)-(keys["KeyW"]?1:0);
+
+  let sin=Math.sin(cam.yaw), cos=Math.cos(cam.yaw);
+
+  cam.x += (mx*cos - mz*sin)*speed*dt;
+  cam.z += (mz*cos + mx*sin)*speed*dt;
+
+  vel.y -= 20*dt;
+  cam.y += vel.y*dt;
+
+  if(cam.y < 7){
+    cam.y = 7;
+    vel.y = 0;
+  }
+
+  if(keys["Space"] && vel.y===0){
+    vel.y = 8;
+  }
+}
+
+// === RAYCAST (BLOCK BREAK) ===
+function getTarget(){
+  let step=0.2;
+  for(let i=0;i<6;i+=step){
+    let x = Math.floor(cam.x + Math.sin(cam.yaw)*i);
+    let y = Math.floor(cam.y);
+    let z = Math.floor(cam.z + Math.cos(cam.yaw)*i);
+
+    let b = world.get(key(x,y,z));
+    if(b) return b;
+  }
+  return null;
+}
+
+// === BREAK ===
+onmousedown = e=>{
+  let b = getTarget();
+  if(!b) return;
+
+  world.delete(key(b.x,b.y,b.z));
+};
+
+// === LOOP ===
+let last=0;
+function loop(t){
+  let dt=(t-last)/1000;
+  last=t;
+
+  update(dt);
+  draw();
+
+  requestAnimationFrame(loop);
+}
+loop(0);
+</script>
+</body>
+</html>
