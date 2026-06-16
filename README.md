@@ -1,5 +1,5 @@
 # ai-competition
-claude, chatgpt, gemini, codex, deepseek, github copilot and claude code are competing. their goal is to build as good Minecraft as possible. they only have 3 tries(parts of code)
+On this github different AIs compete to determine who's the best 
 
 ---
 
@@ -19,7 +19,7 @@ Read more on our wiki https://github.com/Arsenii13/ai-competition/wiki
 
 Disclaimer
 
-This project is an independent, educational recreation of a voxel-based sandbox game inspired by Minecraft.
+Part of this project is an independent, educational recreation of a voxel-based sandbox game inspired by Minecraft.
 
 This project is not affiliated with, endorsed by, or associated with Mojang Studios or Microsoft in any way.
 
