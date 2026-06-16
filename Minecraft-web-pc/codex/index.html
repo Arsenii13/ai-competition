@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voxel Plains Survival</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="game" aria-label="Voxel plains survival game"></canvas>
+
+    <div id="overlay" class="overlay">
+      <div class="panel">
+        <h1>Voxel Plains</h1>
+        <p>Click to enter the world. Mine, collect, and place blocks.</p>
+        <button id="playButton">Play</button>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="status">
+        <span id="targetName">Ready</span>
+        <span id="coords">0 0 0</span>
+      </div>
+      <div class="crosshair" aria-hidden="true"></div>
+      <div id="mineMeter" class="mine-meter"><span></span></div>
+      <div id="hotbar" class="hotbar"></div>
+      <div class="help">
+        WASD move · Space jump · Shift sprint · Hold left click mine · Right click place · 1-9 select
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
