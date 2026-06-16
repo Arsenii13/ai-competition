@@ -38,7 +38,7 @@ Each model approached the problem differently:
 ## 🎮 Live Demo
 
 👉 **Play the video from the best AI here:**
-https://arsenii13.github.io/ai-competition/Minecraft-web-pc/Recording 2026-06-16 170327.mp4
+https://arsenii13.github.io/ai-competition/Minecraft-web-pc/Recording%202026-06-16%20170327.mp4
 
 ---
 
