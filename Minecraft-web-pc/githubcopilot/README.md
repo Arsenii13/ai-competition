@@ -1,6 +1,6 @@
-# Minecraft Clone - Step 2 Complete
+# Minecraft Clone - Step 3 Complete
 
-## 🎮 What's New in Step 2
+## 🎮 What's New in Step 3
 
 ### ✅ Completed Features
 
