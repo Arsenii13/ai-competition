@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Clone</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #canvas {
+            display: block;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            z-index: 10;
+        }
+        #inventory {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 10;
+        }
+        .inventory-slot {
+            width: 40px;
+            height: 40px;
+            border: 2px solid white;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .inventory-slot.selected {
+            border: 3px solid #FFD700;
+            background: rgba(255, 215, 0, 0.3);
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        #blockBreakProgress {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 3px solid white;
+            margin-top: -45px;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255, 100, 100, 0.8) 0%, rgba(255, 100, 100, 0.8) 0%, transparent 0%);
+            border-radius: 2px;
+        }
+        #crafting-menu {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid #8B7355;
+            padding: 20px;
+            z-index: 100;
+            display: none;
+            min-width: 300px;
+            border-radius: 8px;
+        }
+        #crafting-menu h3 {
+            color: white;
+            margin-top: 0;
+            text-align: center;
+        }
+        #crafting-menu button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #704214;
+            color: white;
+            border: 2px solid #8B7355;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #crafting-menu button:hover:not(:disabled) {
+            background: #8B5A2B;
+        }
+        #crafting-menu button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="hud">
+        <div>Position: <span id="pos">0, 0, 0</span></div>
+        <div>Time: <span id="time">06:00</span></div>
+        <div>Selected: <span id="selected">Grass</span></div>
+        <div>Mining: <span id="mining">None</span></div>
+        <div style="margin-top: 10px;">
+            Health: <span id="health">20</span>/20 ❤️ | Hunger: <span id="hunger">20</span>/20 🍗
+        </div>
+    </div>
+    
+    <div id="crosshair"></div>
+    <div id="blockBreakProgress">
+        <div class="progress-bar" style="width: 0%;" id="breakProgressBar"></div>
+    </div>
+    
+    <div id="inventory"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="world.js"></script>
+    <script src="entities.js"></script>
+    <script src="crafting.js"></script>
+    <script src="player.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
