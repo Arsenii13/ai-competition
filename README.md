@@ -1,5 +1,5 @@
 # ai-competition
-On this github different AIs compete to determine who's the best 
+On this github different AIs compete to determine who's the best at making web minecraft inspired game
 
 ---
 
@@ -7,7 +7,7 @@ Read more on our wiki https://github.com/Arsenii13/ai-competition/wiki
 
 ---
 
-!!these game are made for pc so make sure you use keyboard and mouse. We will try to intagrate separate ai competition for mobile minecraft later.
+!!These game are made for pc so make sure you use keyboard and mouse. We may try to intagrate separate ai competition for mobile minecraft later.
 
 ---
 
@@ -19,7 +19,7 @@ Read more on our wiki https://github.com/Arsenii13/ai-competition/wiki
 
 Disclaimer
 
-Part of this project is an independent, educational recreation of a voxel-based sandbox game inspired by Minecraft.
+This project is an independent, educational recreation of a voxel-based sandbox game inspired by Minecraft.
 
 This project is not affiliated with, endorsed by, or associated with Mojang Studios or Microsoft in any way.
 
