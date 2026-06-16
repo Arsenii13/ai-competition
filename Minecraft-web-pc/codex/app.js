@@ -157,6 +157,32 @@ void main() {
 }
 `;
 
+const lineVertexSource = `#version 300 es
+precision highp float;
+
+in vec3 aPosition;
+
+uniform mat4 uProjection;
+uniform mat4 uView;
+
+void main() {
+  gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+}
+`;
+
+const lineFragmentSource = `#version 300 es
+precision highp float;
+
+uniform vec4 uColor;
+
+out vec4 outColor;
+
+void main() {
+  outColor = uColor;
+}
+`;
+
+
 const shaderProgram = makeProgram(gl, vertexSource, fragmentSource);
 const attribs = {
   position: gl.getAttribLocation(shaderProgram, "aPosition"),
@@ -174,6 +200,16 @@ const uniforms = {
   alpha: gl.getUniformLocation(shaderProgram, "uAlpha"),
 };
 const atlasTexture = createAtlasTexture();
+const lineProgram = makeProgram(gl, lineVertexSource, lineFragmentSource);
+const lineAttribs = {
+  position: gl.getAttribLocation(lineProgram, "aPosition"),
+};
+const lineUniforms = {
+  projection: gl.getUniformLocation(lineProgram, "uProjection"),
+  view: gl.getUniformLocation(lineProgram, "uView"),
+  color: gl.getUniformLocation(lineProgram, "uColor"),
+};
+const outlineBuffer = gl.createBuffer();
 
 init();
 
@@ -533,6 +569,8 @@ function draw() {
   drawMesh(waterMesh);
   gl.depthMask(true);
   gl.disable(gl.BLEND);
+
+  drawBlockOutline(projection, view);
 }
 
 function drawMesh(currentMesh) {
@@ -540,6 +578,43 @@ function drawMesh(currentMesh) {
   gl.bindVertexArray(currentMesh.vao);
   gl.drawArrays(gl.TRIANGLES, 0, currentMesh.count);
   gl.bindVertexArray(null);
+}
+
+function drawBlockOutline(projection, view) {
+  if (!hovered) return;
+  const vertices = outlineVertices(hovered.x, hovered.y, hovered.z);
+  gl.useProgram(lineProgram);
+  gl.uniformMatrix4fv(lineUniforms.projection, false, projection);
+  gl.uniformMatrix4fv(lineUniforms.view, false, view);
+  gl.uniform4f(lineUniforms.color, 0.08, 0.08, 0.06, 0.82);
+  gl.bindBuffer(gl.ARRAY_BUFFER, outlineBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(lineAttribs.position);
+  gl.vertexAttribPointer(lineAttribs.position, 3, gl.FLOAT, false, 0, 0);
+  gl.disable(gl.CULL_FACE);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.drawArrays(gl.LINES, 0, vertices.length / 3);
+  gl.disable(gl.BLEND);
+  gl.enable(gl.CULL_FACE);
+}
+
+function outlineVertices(x, y, z) {
+  const o = 0.003;
+  const x0 = x - o;
+  const y0 = y - o;
+  const z0 = z - o;
+  const x1 = x + 1 + o;
+  const y1 = y + 1 + o;
+  const z1 = z + 1 + o;
+  return [
+    x0, y0, z0, x1, y0, z0, x1, y0, z0, x1, y0, z1,
+    x1, y0, z1, x0, y0, z1, x0, y0, z1, x0, y0, z0,
+    x0, y1, z0, x1, y1, z0, x1, y1, z0, x1, y1, z1,
+    x1, y1, z1, x0, y1, z1, x0, y1, z1, x0, y1, z0,
+    x0, y0, z0, x0, y1, z0, x1, y0, z0, x1, y1, z0,
+    x1, y0, z1, x1, y1, z1, x0, y0, z1, x0, y1, z1,
+  ];
 }
 
 function buildMesh(waterOnly) {
@@ -944,60 +1019,3 @@ function makeShader(context, type, source) {
   }
   return shader;
 }
-
-const faces = [
-  { n: [1, 0, 0], v: [[1, 0, 1], [1, 1, 1], [1, 1, 0], [1, 0, 0]] },
-  { n: [-1, 0, 0], v: [[0, 0, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]] },
-  { n: [0, 1, 0], v: [[0, 1, 1], [0, 1, 0], [1, 1, 0], [1, 1, 1]] },
-  { n: [0, -1, 0], v: [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0]] },
-  { n: [0, 0, 1], v: [[0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]] },
-  { n: [0, 0, -1], v: [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 0]] },
-];
-
-const vertexSource = `#version 300 es
-precision highp float;
-
-in vec3 aPosition;
-in vec3 aNormal;
-in vec2 aUv;
-in float aBlockLight;
-
-uniform mat4 uProjection;
-uniform mat4 uView;
-uniform vec3 uSunDir;
-
-out vec2 vUv;
-out float vLight;
-out float vDistance;
-
-void main() {
-  vec4 viewPos = uView * vec4(aPosition, 1.0);
-  float sun = max(dot(normalize(aNormal), normalize(uSunDir)), 0.0);
-  vLight = aBlockLight * (0.62 + sun * 0.42);
-  vUv = aUv;
-  vDistance = length(viewPos.xyz);
-  gl_Position = uProjection * viewPos;
-}
-`;
-
-const fragmentSource = `#version 300 es
-precision highp float;
-
-uniform sampler2D uAtlas;
-uniform vec3 uFogColor;
-uniform float uAlpha;
-
-in vec2 vUv;
-in float vLight;
-in float vDistance;
-
-out vec4 outColor;
-
-void main() {
-  vec4 tex = texture(uAtlas, vUv);
-  vec3 color = tex.rgb * vLight;
-  float fog = smoothstep(55.0, 132.0, vDistance);
-  color = mix(color, uFogColor, fog);
-  outColor = vec4(color, tex.a * uAlpha);
-}
-`;
