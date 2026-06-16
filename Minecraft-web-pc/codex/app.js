@@ -7,6 +7,8 @@ const mineMeter = document.getElementById("mineMeter");
 const mineFill = mineMeter.querySelector("span");
 const targetNameEl = document.getElementById("targetName");
 const coordsEl = document.getElementById("coords");
+const craftingPanel = document.getElementById("craftingPanel");
+const recipesEl = document.getElementById("recipes");
 
 if (!gl) {
   overlay.querySelector("p").textContent = "This browser could not start WebGL 2.";
@@ -22,16 +24,26 @@ const BLOCK = {
   LEAVES: 5,
   WATER: 6,
   SAND: 7,
+  COAL_ORE: 8,
+  IRON_ORE: 9,
+  COBBLE: 10,
+  PLANKS: 11,
+  WOOL: 12,
 };
 
 const BLOCKS = {
   [BLOCK.GRASS]: { name: "Grass", solid: true, hardness: 0.9, drop: BLOCK.DIRT, placeable: true },
   [BLOCK.DIRT]: { name: "Dirt", solid: true, hardness: 0.75, drop: BLOCK.DIRT, placeable: true },
-  [BLOCK.STONE]: { name: "Stone", solid: true, hardness: 1.75, drop: BLOCK.STONE, placeable: true },
+  [BLOCK.STONE]: { name: "Stone", solid: true, hardness: 1.75, drop: BLOCK.COBBLE, placeable: true },
   [BLOCK.LOG]: { name: "Log", solid: true, hardness: 1.3, drop: BLOCK.LOG, placeable: true },
   [BLOCK.LEAVES]: { name: "Leaves", solid: true, hardness: 0.45, drop: BLOCK.LEAVES, placeable: true },
   [BLOCK.WATER]: { name: "Water", solid: false, hardness: 999, drop: BLOCK.AIR, placeable: false, transparent: true },
   [BLOCK.SAND]: { name: "Sand", solid: true, hardness: 0.7, drop: BLOCK.SAND, placeable: true },
+  [BLOCK.COAL_ORE]: { name: "Coal Ore", solid: true, hardness: 2.0, drop: BLOCK.COAL_ORE, placeable: true },
+  [BLOCK.IRON_ORE]: { name: "Iron Ore", solid: true, hardness: 2.4, drop: BLOCK.IRON_ORE, placeable: true },
+  [BLOCK.COBBLE]: { name: "Cobblestone", solid: true, hardness: 1.55, drop: BLOCK.COBBLE, placeable: true },
+  [BLOCK.PLANKS]: { name: "Planks", solid: true, hardness: 1.0, drop: BLOCK.PLANKS, placeable: true },
+  [BLOCK.WOOL]: { name: "Wool", solid: true, hardness: 0.55, drop: BLOCK.WOOL, placeable: true },
 };
 
 const FACE_NAMES = ["east", "west", "top", "bottom", "south", "north"];
@@ -54,6 +66,11 @@ const textureTiles = {
   leaves: 6,
   water: 7,
   sand: 8,
+  coalOre: 9,
+  ironOre: 10,
+  cobble: 11,
+  planks: 12,
+  wool: 13,
 };
 
 const blockFaceTile = {
@@ -64,6 +81,11 @@ const blockFaceTile = {
   [BLOCK.LEAVES]: { all: textureTiles.leaves },
   [BLOCK.WATER]: { all: textureTiles.water },
   [BLOCK.SAND]: { all: textureTiles.sand },
+  [BLOCK.COAL_ORE]: { all: textureTiles.coalOre },
+  [BLOCK.IRON_ORE]: { all: textureTiles.ironOre },
+  [BLOCK.COBBLE]: { all: textureTiles.cobble },
+  [BLOCK.PLANKS]: { all: textureTiles.planks },
+  [BLOCK.WOOL]: { all: textureTiles.wool },
 };
 
 const world = new Map();
@@ -78,6 +100,8 @@ let miningTargetKey = "";
 let miningProgress = 0;
 let selectedSlot = 0;
 let pointerLocked = false;
+let craftingOpen = false;
+let mobs = [];
 
 const keys = new Set();
 const player = {
@@ -90,23 +114,45 @@ const player = {
 
 const inventory = [
   { block: BLOCK.DIRT, count: 0 },
-  { block: BLOCK.STONE, count: 0 },
+  { block: BLOCK.COBBLE, count: 0 },
   { block: BLOCK.LOG, count: 0 },
   { block: BLOCK.LEAVES, count: 0 },
   { block: BLOCK.SAND, count: 0 },
-  null,
-  null,
-  null,
-  null,
+  { block: BLOCK.PLANKS, count: 0 },
+  { block: BLOCK.COAL_ORE, count: 0 },
+  { block: BLOCK.IRON_ORE, count: 0 },
+  { block: BLOCK.WOOL, count: 0 },
 ];
 
+const recipes = [
+  { key: "R", name: "4 Planks", input: [[BLOCK.LOG, 1]], output: [BLOCK.PLANKS, 4] },
+  { key: "T", name: "Stone", input: [[BLOCK.COBBLE, 4]], output: [BLOCK.STONE, 1] },
+  { key: "Y", name: "2 Wool", input: [[BLOCK.LEAVES, 4]], output: [BLOCK.WOOL, 2] },
+  { key: "U", name: "Grass Block", input: [[BLOCK.DIRT, 2], [BLOCK.SAND, 1]], output: [BLOCK.GRASS, 1] },
+];
+
+const mobTypes = {
+  sheep: {
+    name: "Sheep",
+    body: BLOCK.WOOL,
+    head: BLOCK.WOOL,
+    legs: BLOCK.LOG,
+  },
+  cow: {
+    name: "Cow",
+    body: BLOCK.LOG,
+    head: BLOCK.LOG,
+    legs: BLOCK.STONE,
+  },
+};
+
 const faces = [
-  { n: [1, 0, 0], v: [[1, 0, 1], [1, 1, 1], [1, 1, 0], [1, 0, 0]] },
-  { n: [-1, 0, 0], v: [[0, 0, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]] },
-  { n: [0, 1, 0], v: [[0, 1, 1], [0, 1, 0], [1, 1, 0], [1, 1, 1]] },
-  { n: [0, -1, 0], v: [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0]] },
-  { n: [0, 0, 1], v: [[0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]] },
-  { n: [0, 0, -1], v: [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 0]] },
+  { n: [1, 0, 0], v: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]] },
+  { n: [-1, 0, 0], v: [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]] },
+  { n: [0, 1, 0], v: [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]] },
+  { n: [0, -1, 0], v: [[0, 0, 1], [0, 0, 0], [1, 0, 0], [1, 0, 1]] },
+  { n: [0, 0, 1], v: [[1, 0, 1], [1, 1, 1], [0, 1, 1], [0, 0, 1]] },
+  { n: [0, 0, -1], v: [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]] },
 ];
 
 const vertexSource = `#version 300 es
@@ -210,13 +256,23 @@ const lineUniforms = {
   color: gl.getUniformLocation(lineProgram, "uColor"),
 };
 const outlineBuffer = gl.createBuffer();
+const mobVao = gl.createVertexArray();
+const mobBuffers = {
+  position: gl.createBuffer(),
+  normal: gl.createBuffer(),
+  uv: gl.createBuffer(),
+  light: gl.createBuffer(),
+};
 
 init();
 
 function init() {
   generateWorld();
+  spawnMobs();
   player.pos = findSpawn();
+  stabilizeSpawn(player.pos);
   renderHotbar();
+  renderRecipes();
   bindEvents();
 
   gl.enable(gl.DEPTH_TEST);
@@ -245,6 +301,19 @@ function bindEvents() {
   });
   document.addEventListener("keydown", (event) => {
     keys.add(event.code);
+    if (event.code === "KeyC") {
+      craftingOpen = !craftingOpen;
+      craftingPanel.classList.toggle("hidden", !craftingOpen);
+      renderRecipes();
+      return;
+    }
+    if (craftingOpen) {
+      const recipe = recipes.find((item) => item.key === event.key.toUpperCase());
+      if (recipe) {
+        craftRecipe(recipe);
+        return;
+      }
+    }
     const index = Number.parseInt(event.key, 10) - 1;
     if (index >= 0 && index < 9) {
       selectedSlot = index;
@@ -286,6 +355,7 @@ function loop(now) {
 
 function update(dt) {
   updatePlayer(dt);
+  updateMobs(dt);
   hovered = raycast(playerEye(), lookDirection(), REACH);
   updateMining(dt);
   coordsEl.textContent = `${Math.floor(player.pos.x)} ${Math.floor(player.pos.y)} ${Math.floor(player.pos.z)}`;
@@ -413,6 +483,7 @@ function updateMining(dt) {
     meshDirty = true;
     waterMeshDirty = true;
     renderHotbar();
+    renderRecipes();
   }
 }
 
@@ -432,6 +503,79 @@ function placeSelectedBlock() {
   meshDirty = true;
   waterMeshDirty = true;
   renderHotbar();
+  renderRecipes();
+}
+
+function spawnMobs() {
+  mobs = [];
+  for (let i = 0; i < 18; i++) {
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const x = Math.floor((rand2(i * 17 + attempt, 4) - 0.5) * (WORLD_SIZE - 18));
+      const z = Math.floor((rand2(i * 31 - attempt, 9) - 0.5) * (WORLD_SIZE - 18));
+      const y = highestSolid(x, z);
+      if (getBlock(x, y, z) !== BLOCK.GRASS) continue;
+      mobs.push({
+        type: rand2(x, z) > 0.62 ? "cow" : "sheep",
+        x: x + 0.5,
+        y: y + 1,
+        z: z + 0.5,
+        dir: rand2(z, x) * Math.PI * 2,
+        timer: 1 + rand2(x + 8, z - 3) * 4,
+      });
+      break;
+    }
+  }
+}
+
+function updateMobs(dt) {
+  for (const mob of mobs) {
+    mob.timer -= dt;
+    if (mob.timer <= 0) {
+      mob.dir += (rand2(Math.floor(mob.x * 7), Math.floor(mob.z * 7)) - 0.5) * Math.PI;
+      mob.timer = 1.3 + rand2(Math.floor(mob.z * 11), Math.floor(mob.x * 5)) * 3.2;
+    }
+    const speed = 0.75;
+    const nx = mob.x + Math.sin(mob.dir) * speed * dt;
+    const nz = mob.z + Math.cos(mob.dir) * speed * dt;
+    const ground = highestSolid(Math.floor(nx), Math.floor(nz));
+    const groundBlock = getBlock(Math.floor(nx), ground, Math.floor(nz));
+    const step = ground + 1 - mob.y;
+    if (groundBlock === BLOCK.GRASS && Math.abs(step) <= 1.1 && getBlock(Math.floor(nx), ground + 1, Math.floor(nz)) === BLOCK.AIR) {
+      mob.x = nx;
+      mob.z = nz;
+      mob.y = lerp(mob.y, ground + 1, Math.min(1, dt * 8));
+    } else {
+      mob.dir += Math.PI * (0.55 + rand2(Math.floor(mob.x), Math.floor(mob.z)) * 0.35);
+      mob.timer = 0.5;
+    }
+  }
+}
+
+function craftRecipe(recipe) {
+  if (!canCraft(recipe)) return;
+  for (const [block, count] of recipe.input) removeInventory(block, count);
+  addInventory(recipe.output[0], recipe.output[1]);
+  renderHotbar();
+  renderRecipes();
+}
+
+function canCraft(recipe) {
+  return recipe.input.every(([block, count]) => inventoryCount(block) >= count);
+}
+
+function inventoryCount(block) {
+  return inventory.reduce((sum, item) => sum + (item?.block === block ? item.count : 0), 0);
+}
+
+function removeInventory(block, count) {
+  let remaining = count;
+  for (let i = 0; i < inventory.length && remaining > 0; i++) {
+    const item = inventory[i];
+    if (!item || item.block !== block) continue;
+    const taken = Math.min(item.count, remaining);
+    item.count -= taken;
+    remaining -= taken;
+  }
 }
 
 function aabbIntersectsBlock(x, y, z) {
@@ -451,7 +595,7 @@ function addInventory(block, count) {
       inventory[i].count += count;
       return;
     }
-    if (!inventory[i] && emptyIndex === -1) emptyIndex = i;
+    if ((!inventory[i] || inventory[i].count <= 0) && emptyIndex === -1) emptyIndex = i;
   }
   if (emptyIndex !== -1) inventory[emptyIndex] = { block, count };
 }
@@ -460,19 +604,21 @@ function generateWorld() {
   const heights = new Map();
   for (let x = -HALF_WORLD; x < HALF_WORLD; x++) {
     for (let z = -HALF_WORLD; z < HALF_WORLD; z++) {
-      const ridge = fbm(x * 0.018 + 81, z * 0.018 - 17, 5);
-      const detail = fbm(x * 0.06 - 9, z * 0.06 + 11, 3);
-      let height = Math.floor(15 + ridge * 10 + detail * 3);
-      const river = Math.abs(noise2D(x * 0.018 + 240, z * 0.018 - 73));
-      if (river < 0.08) height -= Math.floor((0.08 - river) * 42);
-      height = clamp(height, 8, MAX_HEIGHT);
+      const continent = fbm(x * 0.011 + 81, z * 0.011 - 17, 5);
+      const hills = fbm(x * 0.036 - 9, z * 0.036 + 11, 4);
+      const detail = fbm(x * 0.11 + 70, z * 0.11 - 40, 2);
+      const river = Math.abs(noise2D(x * 0.017 + 240, z * 0.017 - 73));
+      let height = Math.floor(17 + continent * 7 + Math.max(0, hills) * 8 + detail * 2.2);
+      if (river < 0.105) height -= Math.floor((0.105 - river) * 58);
+      height = clamp(height, 7, MAX_HEIGHT);
       heights.set(key2(x, z), height);
 
       for (let y = 0; y <= height; y++) {
         const depth = height - y;
-        let block = BLOCK.STONE;
-        if (y === height) block = height <= WATER_LEVEL + 1 ? BLOCK.SAND : BLOCK.GRASS;
-        else if (depth < 4) block = height <= WATER_LEVEL + 1 ? BLOCK.SAND : BLOCK.DIRT;
+        const beach = height <= WATER_LEVEL + 1 || river < 0.135;
+        let block = oreBlockFor(x, y, z);
+        if (y === height) block = beach ? BLOCK.SAND : BLOCK.GRASS;
+        else if (depth < 4) block = beach ? BLOCK.SAND : BLOCK.DIRT;
         setBlock(x, y, z, block, false);
       }
       for (let y = height + 1; y <= WATER_LEVEL; y++) {
@@ -480,6 +626,8 @@ function generateWorld() {
       }
     }
   }
+
+  carveCaves(heights);
 
   for (let x = -HALF_WORLD + 4; x < HALF_WORLD - 4; x++) {
     for (let z = -HALF_WORLD + 4; z < HALF_WORLD - 4; z++) {
@@ -489,6 +637,31 @@ function generateWorld() {
       const spacing = Math.abs(noise2D(x * 0.09 - 25, z * 0.09 + 60));
       if (treeNoise > 0.72 && spacing > 0.18) {
         makeTree(x, h + 1, z);
+      }
+    }
+  }
+}
+
+function oreBlockFor(x, y, z) {
+  if (y < 7 && noise3D(x * 0.18 + 9, y * 0.25, z * 0.18 - 3) > 0.55) return BLOCK.IRON_ORE;
+  if (y < 18 && noise3D(x * 0.16 - 20, y * 0.22 + 4, z * 0.16 + 13) > 0.5) return BLOCK.COAL_ORE;
+  if (y < 13 && noise3D(x * 0.24 + 41, y * 0.28 - 2, z * 0.24 + 5) > 0.62) return BLOCK.IRON_ORE;
+  return BLOCK.STONE;
+}
+
+function carveCaves(heights) {
+  for (let x = -HALF_WORLD + 2; x < HALF_WORLD - 2; x++) {
+    for (let z = -HALF_WORLD + 2; z < HALF_WORLD - 2; z++) {
+      const surface = heights.get(key2(x, z));
+      for (let y = 4; y < surface - 3; y++) {
+        const worm = fbm3D(x * 0.038 + 10, y * 0.065 - 30, z * 0.038 + 60, 3);
+        const room = fbm3D(x * 0.075 - 7, y * 0.09 + 4, z * 0.075 + 19, 2);
+        const nearRiver = Math.abs(noise2D(x * 0.017 + 240, z * 0.017 - 73)) < 0.055;
+        const threshold = nearRiver && y > WATER_LEVEL - 4 ? 0.48 : 0.56;
+        if (worm + room * 0.4 > threshold) {
+          setBlock(x, y, z, BLOCK.AIR, false);
+          if (y <= WATER_LEVEL - 1 && nearRiver) setBlock(x, y, z, BLOCK.WATER, false);
+        }
       }
     }
   }
@@ -516,11 +689,17 @@ function makeTree(x, y, z) {
 function findSpawn() {
   let best = { x: 2.5, y: 32, z: 2.5 };
   let bestScore = -Infinity;
-  for (let x = -8; x <= 8; x++) {
-    for (let z = -8; z <= 8; z++) {
+  for (let x = -22; x <= 22; x++) {
+    for (let z = -22; z <= 22; z++) {
       const y = highestSolid(x, z);
       const block = getBlock(x, y, z);
-      const score = (block === BLOCK.GRASS ? 20 : 0) - Math.hypot(x, z) + y * 0.05;
+      if (block !== BLOCK.GRASS) continue;
+      if (getBlock(x, y + 1, z) !== BLOCK.AIR || getBlock(x, y + 2, z) !== BLOCK.AIR) continue;
+      const support =
+        Number(BLOCKS[getBlock(x, y - 1, z)]?.solid) +
+        Number(BLOCKS[getBlock(x, y - 2, z)]?.solid) +
+        Number(BLOCKS[getBlock(x, y - 3, z)]?.solid);
+      const score = 35 + support * 4 - Math.hypot(x, z) * 1.4 + y * 0.08;
       if (score > bestScore) {
         bestScore = score;
         best = { x: x + 0.5, y: y + 1.02, z: z + 0.5 };
@@ -528,6 +707,16 @@ function findSpawn() {
     }
   }
   return best;
+}
+
+function stabilizeSpawn(pos) {
+  const x = Math.floor(pos.x);
+  const z = Math.floor(pos.z);
+  const floorY = Math.floor(pos.y - 0.02) - 1;
+  setBlock(x, floorY, z, BLOCK.GRASS, false);
+  for (let y = floorY - 1; y >= Math.max(1, floorY - 5); y--) {
+    setBlock(x, y, z, y < floorY - 3 ? BLOCK.STONE : BLOCK.DIRT, false);
+  }
 }
 
 function draw() {
@@ -561,6 +750,7 @@ function draw() {
   gl.depthMask(true);
   gl.uniform1f(uniforms.alpha, 1);
   drawMesh(mesh);
+  drawMobs(projection, view);
 
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -578,6 +768,71 @@ function drawMesh(currentMesh) {
   gl.bindVertexArray(currentMesh.vao);
   gl.drawArrays(gl.TRIANGLES, 0, currentMesh.count);
   gl.bindVertexArray(null);
+}
+
+function drawMobs() {
+  if (mobs.length === 0) return;
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const lights = [];
+
+  for (const mob of mobs) {
+    const type = mobTypes[mob.type];
+    addCuboid(positions, normals, uvs, lights, mob.x - 0.34, mob.y + 0.42, mob.z - 0.22, 0.68, 0.58, 0.44, type.body);
+    addCuboid(positions, normals, uvs, lights, mob.x - 0.24, mob.y + 0.88, mob.z - 0.48, 0.48, 0.42, 0.38, type.head);
+    for (const lx of [-0.24, 0.18]) {
+      for (const lz of [-0.16, 0.14]) {
+        addCuboid(positions, normals, uvs, lights, mob.x + lx, mob.y, mob.z + lz, 0.16, 0.48, 0.16, type.legs);
+      }
+    }
+  }
+
+  gl.useProgram(shaderProgram);
+  gl.bindVertexArray(mobVao);
+  uploadAttribute(mobBuffers.position, new Float32Array(positions), attribs.position, 3);
+  uploadAttribute(mobBuffers.normal, new Float32Array(normals), attribs.normal, 3);
+  uploadAttribute(mobBuffers.uv, new Float32Array(uvs), attribs.uv, 2);
+  uploadAttribute(mobBuffers.light, new Float32Array(lights), attribs.blockLight, 1);
+  gl.drawArrays(gl.TRIANGLES, 0, positions.length / 3);
+  gl.bindVertexArray(null);
+}
+
+function uploadAttribute(buffer, data, loc, size) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+}
+
+function addCuboid(positions, normals, uvs, lights, x, y, z, w, h, d, block) {
+  const bounds = [
+    [x + w, y, z, x + w, y + h, z, x + w, y + h, z + d, x + w, y, z + d],
+    [x, y, z + d, x, y + h, z + d, x, y + h, z, x, y, z],
+    [x, y + h, z, x, y + h, z + d, x + w, y + h, z + d, x + w, y + h, z],
+    [x, y, z + d, x, y, z, x + w, y, z, x + w, y, z + d],
+    [x + w, y, z + d, x + w, y + h, z + d, x, y + h, z + d, x, y, z + d],
+    [x, y, z, x, y + h, z, x + w, y + h, z, x + w, y, z],
+  ];
+  for (let i = 0; i < faces.length; i++) {
+    const tile = tileForFace(block, FACE_NAMES[i]);
+    const uv = tileUv(tile);
+    const face = faces[i];
+    const b = bounds[i];
+    const vertices = [
+      [b[0], b[1], b[2]],
+      [b[3], b[4], b[5]],
+      [b[6], b[7], b[8]],
+      [b[9], b[10], b[11]],
+    ];
+    for (const vertexIndex of [0, 1, 2, 0, 2, 3]) {
+      const vertex = vertices[vertexIndex];
+      positions.push(vertex[0], vertex[1], vertex[2]);
+      normals.push(face.n[0], face.n[1], face.n[2]);
+      uvs.push(uv[vertexIndex][0], uv[vertexIndex][1]);
+      lights.push(face.n[1] > 0 ? 1 : face.n[1] < 0 ? 0.52 : 0.76);
+    }
+  }
 }
 
 function drawBlockOutline(projection, view) {
@@ -692,7 +947,7 @@ function ambientAt(x, y, z, n) {
 function createAtlasTexture() {
   const tile = 16;
   const cols = 4;
-  const rows = 3;
+  const rows = 4;
   const atlas = document.createElement("canvas");
   atlas.width = cols * tile;
   atlas.height = rows * tile;
@@ -713,6 +968,26 @@ function createAtlasTexture() {
   });
   drawTile(ctx, textureTiles.water, (x, y, r) => mixColor([54, 126, 190], [84, 165, 218], r + (Math.sin((x + y) * 0.8) + 1) * 0.08));
   drawTile(ctx, textureTiles.sand, (x, y, r) => mixColor([174, 153, 91], [214, 194, 122], r + rand2(x, y) * 0.18));
+  drawTile(ctx, textureTiles.coalOre, (x, y, r) => {
+    const vein = rand2(Math.floor(x / 3), Math.floor(y / 3)) > 0.68;
+    return vein ? mixColor([20, 20, 20], [48, 48, 45], r) : mixColor([83, 87, 86], [128, 130, 126], r);
+  });
+  drawTile(ctx, textureTiles.ironOre, (x, y, r) => {
+    const vein = rand2(Math.floor((x + 1) / 4), Math.floor((y + 2) / 4)) > 0.62;
+    return vein ? mixColor([156, 92, 52], [222, 150, 94], r) : mixColor([86, 90, 88], [128, 132, 127], r);
+  });
+  drawTile(ctx, textureTiles.cobble, (x, y, r) => {
+    const mortar = x % 6 === 0 || y % 5 === 0 || (x + y) % 11 === 0;
+    return mortar ? [58, 60, 58] : mixColor([91, 94, 91], [132, 136, 130], r + rand2(x, y) * 0.2);
+  });
+  drawTile(ctx, textureTiles.planks, (x, y, r) => {
+    const seam = y % 5 === 0 || x % 13 === 0;
+    return seam ? [87, 53, 24] : mixColor([143, 89, 39], [190, 128, 64], r + Math.sin(x * 0.8) * 0.08);
+  });
+  drawTile(ctx, textureTiles.wool, (x, y, r) => {
+    const tuft = rand2(Math.floor(x / 2), Math.floor(y / 2)) > 0.55;
+    return mixColor(tuft ? [214, 213, 199] : [183, 183, 169], [247, 246, 231], r * 0.7);
+  });
 
   function drawTile(context, index, picker) {
     const ox = (index % cols) * tile;
@@ -738,7 +1013,7 @@ function createAtlasTexture() {
 
 function tileUv(tile) {
   const cols = 4;
-  const rows = 3;
+  const rows = 4;
   const margin = 0.001;
   const tx = tile % cols;
   const ty = Math.floor(tile / cols);
@@ -824,7 +1099,7 @@ function renderHotbar() {
     key.textContent = String(i + 1);
     slot.appendChild(key);
     const item = inventory[i];
-    if (item) {
+    if (item && item.count > 0) {
       const icon = document.createElement("span");
       icon.className = "icon";
       icon.style.background = iconStyle(item.block);
@@ -837,6 +1112,24 @@ function renderHotbar() {
   }
 }
 
+function renderRecipes() {
+  recipesEl.innerHTML = "";
+  for (const recipe of recipes) {
+    const row = document.createElement("div");
+    row.className = `recipe${canCraft(recipe) ? "" : " disabled"}`;
+    const icon = document.createElement("span");
+    icon.className = "icon";
+    icon.style.background = iconStyle(recipe.output[0]);
+    const label = document.createElement("span");
+    label.textContent = `${recipe.name}: ${recipe.input.map(([block, count]) => `${count} ${BLOCKS[block].name}`).join(" + ")}`;
+    const key = document.createElement("span");
+    key.className = "key";
+    key.textContent = recipe.key;
+    row.append(icon, label, key);
+    recipesEl.appendChild(row);
+  }
+}
+
 function iconStyle(block) {
   const colors = {
     [BLOCK.DIRT]: "#8b5f35",
@@ -844,9 +1137,18 @@ function iconStyle(block) {
     [BLOCK.LOG]: "#855426",
     [BLOCK.LEAVES]: "#4f9130",
     [BLOCK.SAND]: "#d4bc76",
+    [BLOCK.COAL_ORE]: "#4d4f4e",
+    [BLOCK.IRON_ORE]: "#b88762",
+    [BLOCK.COBBLE]: "#777a76",
+    [BLOCK.PLANKS]: "#b88446",
+    [BLOCK.WOOL]: "#e8e7d8",
+    [BLOCK.GRASS]: "#5da33a",
   };
   if (block === BLOCK.DIRT) return `linear-gradient(135deg, #a36f3e, ${colors[block]})`;
   if (block === BLOCK.LOG) return `repeating-linear-gradient(90deg, #5d371b 0 4px, ${colors[block]} 4px 9px)`;
+  if (block === BLOCK.PLANKS) return `repeating-linear-gradient(0deg, #9a6330 0 5px, ${colors[block]} 5px 10px)`;
+  if (block === BLOCK.COAL_ORE) return `radial-gradient(circle at 30% 30%, #171717 0 4px, transparent 5px), linear-gradient(135deg, #8b8f8b, ${colors[block]})`;
+  if (block === BLOCK.IRON_ORE) return `radial-gradient(circle at 65% 35%, #d59a6b 0 4px, transparent 5px), linear-gradient(135deg, #8b8f8b, ${colors[block]})`;
   return `linear-gradient(135deg, ${colors[block]}, #26311e)`;
 }
 
@@ -925,6 +1227,20 @@ function fbm(x, z, octaves) {
   return value / norm;
 }
 
+function fbm3D(x, y, z, octaves) {
+  let value = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  let norm = 0;
+  for (let i = 0; i < octaves; i++) {
+    value += noise3D(x * frequency, y * frequency, z * frequency) * amplitude;
+    norm += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  return value / norm;
+}
+
 function noise2D(x, z) {
   const ix = Math.floor(x);
   const iz = Math.floor(z);
@@ -935,6 +1251,30 @@ function noise2D(x, z) {
   const c = rand2(ix, iz + 1);
   const d = rand2(ix + 1, iz + 1);
   return lerp(lerp(a, b, fx), lerp(c, d, fx), fz) * 2 - 1;
+}
+
+function noise3D(x, y, z) {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const iz = Math.floor(z);
+  const fx = smoothstep(x - ix);
+  const fy = smoothstep(y - iy);
+  const fz = smoothstep(z - iz);
+  const c000 = rand3(ix, iy, iz);
+  const c100 = rand3(ix + 1, iy, iz);
+  const c010 = rand3(ix, iy + 1, iz);
+  const c110 = rand3(ix + 1, iy + 1, iz);
+  const c001 = rand3(ix, iy, iz + 1);
+  const c101 = rand3(ix + 1, iy, iz + 1);
+  const c011 = rand3(ix, iy + 1, iz + 1);
+  const c111 = rand3(ix + 1, iy + 1, iz + 1);
+  const x00 = lerp(c000, c100, fx);
+  const x10 = lerp(c010, c110, fx);
+  const x01 = lerp(c001, c101, fx);
+  const x11 = lerp(c011, c111, fx);
+  const y0 = lerp(x00, x10, fy);
+  const y1 = lerp(x01, x11, fy);
+  return lerp(y0, y1, fz) * 2 - 1;
 }
 
 function smoothstep(t) {
