@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MineClone II</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+#c { display: block; width: 100vw; height: 100vh; }
+
+#overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #fff; z-index: 100; gap: 14px;
+}
+#overlay h1 {
+  font-size: 56px; font-weight: 900; letter-spacing: 3px;
+  color: #5a9e2f; text-shadow: 4px 4px 0 #1a3d08, -1px -1px 0 #1a3d08;
+}
+#overlay .subtitle { color: #7ec850; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; }
+#overlay p { color: #999; font-size: 13px; margin-top: 4px; }
+#overlay button {
+  margin-top: 12px; padding: 14px 52px; font-size: 18px; font-weight: bold;
+  background: linear-gradient(180deg,#6ab82f,#3d7a12); color: #fff; border: none;
+  cursor: pointer; border-radius: 3px; letter-spacing: 1px;
+  box-shadow: 0 5px 0 #1a3d08, inset 0 1px 0 rgba(255,255,255,0.2);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+#overlay button:hover { background: linear-gradient(180deg,#7ecf38,#4a8f18); }
+#overlay button:active { transform: translateY(3px); box-shadow: 0 2px 0 #1a3d08; }
+#overlay ul { text-align: left; color: #bbb; font-size: 12px; line-height: 2.1; list-style: none; columns: 2; gap: 32px; }
+#overlay ul li::before { content: '▸ '; color: #7ec850; }
+.keybind { color: #f0c040; }
+
+/* HUD */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+/* Crosshair */
+#crosshair {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 22px; height: 22px;
+}
+#crosshair::before, #crosshair::after {
+  content: ''; position: absolute; background: rgba(255,255,255,0.9);
+  border-radius: 1px;
+}
+#crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+#crosshair::after  { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
+
+/* Hotbar */
+#hotbar {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 3px;
+  background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.hslot {
+  width: 54px; height: 54px;
+  background: rgba(20,20,20,0.7);
+  border: 2px solid #4a4a4a;
+  border-radius: 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; cursor: pointer; pointer-events: all;
+  transition: border-color 0.08s, background 0.08s;
+}
+.hslot:hover { border-color: #888; }
+.hslot.active { border-color: #fff; background: rgba(255,255,255,0.12); }
+.hslot canvas { width: 38px; height: 38px; image-rendering: pixelated; }
+.hslot .qty {
+  position: absolute; bottom: 2px; right: 4px;
+  font-size: 11px; font-weight: bold; color: #fff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+}
+.hslot .slot-num {
+  position: absolute; top: 1px; left: 4px;
+  font-size: 9px; color: #888;
+}
+
+/* Mining bar */
+#mineBar {
+  position: absolute; bottom: 92px; left: 50%; transform: translateX(-50%);
+  width: 220px; height: 16px;
+  background: rgba(0,0,0,0.65);
+  border: 2px solid #777; border-radius: 3px;
+  overflow: hidden; display: none;
+}
+#mineBarFill {
+  height: 100%;
+  background: linear-gradient(90deg,#e8a020,#f0d040);
+  width: 0%;
+}
+
+/* Health / Hunger bars */
+#bars {
+  position: absolute; bottom: 82px; left: 50%; transform: translateX(-50%);
+  width: 490px; display: flex; justify-content: space-between;
+}
+.barrow { display: flex; gap: 2px; }
+.heart, .food-icon {
+  width: 16px; height: 16px; font-size: 14px; line-height: 16px; text-align: center;
+}
+
+/* Stats */
+#stats {
+  position: absolute; top: 8px; left: 8px;
+  color: #fff; font-size: 11px; line-height: 1.8;
+  text-shadow: 1px 1px 2px #000;
+  background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px;
+}
+
+/* Biome label */
+#biomeLabel {
+  position: absolute; top: 8px; right: 8px;
+  color: #fff; font-size: 12px; text-shadow: 1px 1px 2px #000;
+  background: rgba(0,0,0,0.35); padding: 5px 12px; border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+/* Time indicator */
+#timeDisplay {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  color: #fff; font-size: 13px; text-shadow: 1px 1px 2px #000;
+  background: rgba(0,0,0,0.35); padding: 4px 14px; border-radius: 4px;
+}
+
+/* Pause */
+#pausePanel {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  background: rgba(0,0,0,0.85);
+  border: 2px solid #444; border-radius: 6px;
+  padding: 28px 48px; text-align: center;
+  display: none; pointer-events: all;
+}
+#pausePanel h2 { color: #fff; font-size: 24px; margin-bottom: 12px; }
+#pausePanel p  { color: #aaa; font-size: 13px; }
+
+/* Inventory screen */
+#invScreen {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.78);
+  display: none; align-items: center; justify-content: center;
+  z-index: 50; pointer-events: all;
+}
+#invScreen.open { display: flex; }
+#invPanel {
+  background: #c6c6c6;
+  border: 3px solid #555;
+  border-radius: 3px;
+  padding: 16px 20px;
+  min-width: 380px;
+}
+#invPanel h3 {
+  font-size: 14px; font-weight: bold; color: #333;
+  margin-bottom: 10px; letter-spacing: 1px;
+}
+.inv-grid {
+  display: grid; grid-template-columns: repeat(9, 44px); gap: 3px;
+  margin-bottom: 8px;
+}
+.inv-slot {
+  width: 44px; height: 44px;
+  background: #8b8b8b; border: 2px inset #555;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; cursor: pointer;
+}
+.inv-slot:hover { background: #a8a8a8; }
+.inv-slot canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+.inv-slot .qty {
+  position: absolute; bottom: 1px; right: 3px;
+  font-size: 10px; font-weight: bold; color: #fff;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* Tooltip */
+#tooltip {
+  position: fixed; background: rgba(20,0,40,0.92);
+  border: 1px solid #7b4fb5; color: #fff;
+  font-size: 12px; padding: 5px 10px; border-radius: 3px;
+  pointer-events: none; display: none; z-index: 200;
+}
+
+/* Notification */
+#notif {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  color: #fff; font-size: 13px;
+  text-shadow: 1px 1px 2px #000;
+  background: rgba(0,0,0,0.5); padding: 5px 16px; border-radius: 4px;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+
+/* Water tint */
+#waterTint {
+  position: fixed; inset: 0;
+  background: rgba(20,80,180,0.35);
+  display: none; pointer-events: none; z-index: 5;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div class="subtitle">Part II</div>
+  <h1>⛏ MineClone</h1>
+  <p>A Minecraft-inspired voxel world — now with biomes, caves, day/night & more</p>
+  <ul>
+    <li><span class="keybind">WASD</span> Move</li>
+    <li><span class="keybind">SPACE</span> Jump</li>
+    <li><span class="keybind">SHIFT</span> Sprint</li>
+    <li><span class="keybind">LMB hold</span> Mine</li>
+    <li><span class="keybind">RMB</span> Place block</li>
+    <li><span class="keybind">1–9</span> Hotbar slot</li>
+    <li><span class="keybind">E</span> Inventory</li>
+    <li><span class="keybind">F</span> Fly toggle</li>
+    <li><span class="keybind">ESC</span> Pause</li>
+    <li><span class="keybind">T</span> Time skip</li>
+  </ul>
+  <button id="startBtn">▶ Enter World</button>
+</div>
+
+<div id="hud" style="display:none">
+  <div id="crosshair"></div>
+  <div id="bars">
+    <div class="barrow" id="healthBar"></div>
+    <div class="barrow" id="hungerBar"></div>
+  </div>
+  <div id="hotbar"></div>
+  <div id="mineBar"><div id="mineBarFill"></div></div>
+  <div id="stats"></div>
+  <div id="biomeLabel"></div>
+  <div id="timeDisplay"></div>
+  <div id="notif"></div>
+  <div id="pausePanel">
+    <h2>⏸ Paused</h2>
+    <p>Click anywhere or press ESC to resume</p>
+  </div>
+</div>
+
+<div id="invScreen">
+  <div id="invPanel">
+    <h3>INVENTORY</h3>
+    <div class="inv-grid" id="invGrid"></div>
+    <div style="height:6px;background:#555;margin:6px 0;border-radius:2px"></div>
+    <h3>HOTBAR</h3>
+    <div class="inv-grid" id="invHotbarGrid"></div>
+    <div style="margin-top:10px;text-align:right">
+      <button onclick="closeInventory()" style="padding:6px 18px;background:#5a9e2f;color:#fff;border:none;cursor:pointer;border-radius:3px;font-weight:bold">Close [E]</button>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="waterTint"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// BLOCK DEFINITIONS  — expanded palette
+// ═══════════════════════════════════════════════════════════
+const BLOCKS = {
+  AIR:0, GRASS:1, DIRT:2, STONE:3, WOOD:4, LEAVES:5,
+  SAND:6, WATER:7, GRAVEL:8, SNOW_GRASS:9, SNOW:10,
+  CACTUS:11, COAL_ORE:12, IRON_ORE:13, COBBLESTONE:14,
+  PLANKS:15, GLASS:16, BEDROCK:17,
+};
+
+// face order: +x,-x,+y,-y,+z,-z
+const BD = {
+  [BLOCKS.GRASS]:     {name:'Grass',     col:[0x5a9e2f,0x7a5a1e,0x5a9e2f,0x7a5a1e,0x5a9e2f,0x7a5a1e], drop:BLOCKS.DIRT,   hard:0.6, tool:null},
+  [BLOCKS.DIRT]:      {name:'Dirt',      col:[0x8B6914,0x8B6914,0x8B6914,0x8B6914,0x8B6914,0x8B6914], drop:BLOCKS.DIRT,   hard:0.5, tool:null},
+  [BLOCKS.STONE]:     {name:'Stone',     col:[0x868686,0x868686,0x868686,0x868686,0x868686,0x868686], drop:BLOCKS.COBBLESTONE,hard:1.5,tool:'pick'},
+  [BLOCKS.COBBLESTONE]:{name:'Cobblestone',col:[0x797979,0x797979,0x797979,0x797979,0x797979,0x797979],drop:BLOCKS.COBBLESTONE,hard:2.0,tool:'pick'},
+  [BLOCKS.WOOD]:      {name:'Log',       col:[0x6B4C2A,0x6B4C2A,0x7e6020,0x7e6020,0x7e6020,0x7e6020], drop:BLOCKS.WOOD,   hard:2.0, tool:'axe'},
+  [BLOCKS.PLANKS]:    {name:'Planks',    col:[0xc09050,0xc09050,0xc09050,0xc09050,0xc09050,0xc09050], drop:BLOCKS.PLANKS, hard:1.5, tool:'axe'},
+  [BLOCKS.LEAVES]:    {name:'Leaves',    col:[0x2e7d1f,0x2e7d1f,0x2e7d1f,0x2e7d1f,0x2e7d1f,0x2e7d1f], drop:BLOCKS.LEAVES, hard:0.2, tool:null, transparent:true},
+  [BLOCKS.GLASS]:     {name:'Glass',     col:[0xaaddf0,0xaaddf0,0xaaddf0,0xaaddf0,0xaaddf0,0xaaddf0], drop:BLOCKS.GLASS,  hard:0.3, tool:null, transparent:true},
+  [BLOCKS.SAND]:      {name:'Sand',      col:[0xd4c17f,0xd4c17f,0xd4c17f,0xd4c17f,0xd4c17f,0xd4c17f], drop:BLOCKS.SAND,   hard:0.5, tool:null},
+  [BLOCKS.GRAVEL]:    {name:'Gravel',    col:[0x907a7a,0x907a7a,0x907a7a,0x907a7a,0x907a7a,0x907a7a], drop:BLOCKS.GRAVEL, hard:0.6, tool:null},
+  [BLOCKS.SNOW_GRASS]:{name:'Snow Grass',col:[0xe8e8f0,0x6a8a4a,0xe8e8f0,0x6a8a4a,0xe8e8f0,0x6a8a4a],drop:BLOCKS.DIRT,   hard:0.5, tool:null},
+  [BLOCKS.SNOW]:      {name:'Snow',      col:[0xf0f0ff,0xf0f0ff,0xf0f0ff,0xf0f0ff,0xf0f0ff,0xf0f0ff], drop:BLOCKS.SNOW,   hard:0.2, tool:null},
+  [BLOCKS.CACTUS]:    {name:'Cactus',    col:[0x2e8b20,0x2e8b20,0x1e6010,0x1e6010,0x2e8b20,0x2e8b20], drop:BLOCKS.CACTUS, hard:0.4, tool:null},
+  [BLOCKS.COAL_ORE]:  {name:'Coal Ore',  col:[0x5a5a5a,0x5a5a5a,0x5a5a5a,0x5a5a5a,0x5a5a5a,0x5a5a5a], drop:BLOCKS.COAL_ORE,hard:3.0,tool:'pick'},
+  [BLOCKS.IRON_ORE]:  {name:'Iron Ore',  col:[0x886a5a,0x886a5a,0x886a5a,0x886a5a,0x886a5a,0x886a5a], drop:BLOCKS.IRON_ORE,hard:3.0,tool:'pick'},
+  [BLOCKS.WATER]:     {name:'Water',     col:[0x2255cc,0x2255cc,0x2060dd,0x2060dd,0x2255cc,0x2255cc], drop:BLOCKS.AIR,    hard:999, tool:null, liquid:true, transparent:true},
+  [BLOCKS.BEDROCK]:   {name:'Bedrock',   col:[0x333333,0x333333,0x333333,0x333333,0x333333,0x333333], drop:BLOCKS.AIR,    hard:999, tool:null},
+};
+
+function isSolid(b) { return b!==BLOCKS.AIR && b!==BLOCKS.WATER && !BD[b]?.liquid; }
+function isTransparent(b) { return b===BLOCKS.AIR||BD[b]?.transparent||BD[b]?.liquid; }
+
+// ═══════════════════════════════════════════════════════════
+// NOISE
+// ═══════════════════════════════════════════════════════════
+class Noise {
+  constructor(seed=42){
+    this.p=new Uint8Array(512);
+    const perm=new Uint8Array(256);
+    for(let i=0;i<256;i++) perm[i]=i;
+    let s=seed|0;
+    for(let i=255;i>0;i--){s=(Math.imul(s,1664525)+1013904223)>>>0;const j=s%(i+1);[perm[i],perm[j]]=[perm[j],perm[i]];}
+    for(let i=0;i<512;i++) this.p[i]=perm[i&255];
+  }
+  fade(t){return t*t*t*(t*(t*6-15)+10);}
+  lerp(a,b,t){return a+(b-a)*t;}
+  grad(h,x,y){h&=3;const u=h<2?x:y,v=h<2?y:x;return((h&1)?-u:u)+((h&2)?-v:v);}
+  n2(x,y){
+    const X=Math.floor(x)&255,Y=Math.floor(y)&255;
+    x-=Math.floor(x);y-=Math.floor(y);
+    const u=this.fade(x),v=this.fade(y);
+    const a=this.p[X]+Y,b=this.p[X+1]+Y;
+    return this.lerp(this.lerp(this.grad(this.p[a],x,y),this.grad(this.p[b],x-1,y),u),
+                     this.lerp(this.grad(this.p[a+1],x,y-1),this.grad(this.p[b+1],x-1,y-1),u),v);
+  }
+  fbm(x,y,oct=4,lac=2.0,gain=0.5){
+    let v=0,a=1,f=1,m=0;
+    for(let i=0;i<oct;i++){v+=this.n2(x*f,y*f)*a;m+=a;a*=gain;f*=lac;}
+    return v/m;
+  }
+}
+
+const noiseH  = new Noise(11111); // height
+const noiseDt = new Noise(22222); // detail
+const noiseBiome = new Noise(33333); // biome
+const noiseCave  = new Noise(44444); // caves
+const noiseCave2 = new Noise(55555);
+const noiseOre   = new Noise(66666);
+
+// ═══════════════════════════════════════════════════════════
+// BIOMES
+// ═══════════════════════════════════════════════════════════
+const BIOME = { PLAINS:0, DESERT:1, TAIGA:2, MOUNTAINS:3 };
+
+function getBiome(wx,wz){
+  const t = noiseBiome.fbm(wx/200, wz/200, 3);
+  const h = getTerrainHeightRaw(wx,wz);
+  if (h > 48) return BIOME.MOUNTAINS;
+  if (t < -0.25) return BIOME.DESERT;
+  if (t > 0.2)   return BIOME.TAIGA;
+  return BIOME.PLAINS;
+}
+
+const BIOME_NAMES = ['Plains','Desert','Taiga','Mountains'];
+
+function getTerrainHeightRaw(wx,wz){
+  const nx=wx/90, nz=wz/90;
+  const base = noiseH.fbm(nx,nz,5,2.1,0.52);
+  const detail = noiseDt.fbm(nx*1.8,nz*1.8,3,2,0.5)*0.25;
+  return 28 + (base+detail)*20;
+}
+
+function getTerrainHeight(wx,wz){
+  const biome = getBiome(wx,wz);
+  const raw = getTerrainHeightRaw(wx,wz);
+  if (biome===BIOME.MOUNTAINS) return Math.floor(raw * 1.35);
+  if (biome===BIOME.DESERT)    return Math.floor(raw * 0.85 + 4);
+  return Math.floor(raw);
+}
+
+// ═══════════════════════════════════════════════════════════
+// WORLD / CHUNK DATA
+// ═══════════════════════════════════════════════════════════
+const CHUNK_SIZE=16, CHUNK_HEIGHT=80, RENDER_DIST=6;
+const world=new Map(), chunkMeshes=new Map(), waterMeshes=new Map();
+const dirtyChunks=new Set();
+
+function chunkKey(cx,cz){return cx+','+cz;}
+function blockIndex(lx,ly,lz){return(ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx;}
+
+function getChunk(cx,cz){
+  const k=chunkKey(cx,cz);
+  if(!world.has(k))generateChunk(cx,cz);
+  return world.get(k);
+}
+
+function generateChunk(cx,cz){
+  const data=new Uint8Array(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE);
+  const WATER_LEVEL=27;
+  const trees=[], cacti=[];
+
+  for(let lx=0;lx<CHUNK_SIZE;lx++){
+    for(let lz=0;lz<CHUNK_SIZE;lz++){
+      const wx=cx*CHUNK_SIZE+lx, wz=cz*CHUNK_SIZE+lz;
+      const h=getTerrainHeight(wx,wz);
+      const biome=getBiome(wx,wz);
+
+      // Bedrock layer
+      data[blockIndex(lx,0,lz)]=BLOCKS.BEDROCK;
+
+      for(let ly=1;ly<CHUNK_HEIGHT;ly++){
+        let b=BLOCKS.AIR;
+
+        // Cave carving (3D noise)
+        if(ly>1 && ly<h-2){
+          const cv1=noiseCave.n2(wx/18,ly/12+wz/18*0.3);
+          const cv2=noiseCave2.n2(wx/16+0.5,ly/10+wz/20*0.4);
+          if(cv1*cv2>0.06 && ly>4){
+            data[blockIndex(lx,ly,lz)]=BLOCKS.AIR;
+            continue;
+          }
+        }
+
+        if(ly<h-5){ 
+          b=BLOCKS.STONE;
+          // Ore veins
+          const oNoise=noiseOre.n2(wx/8+ly*0.05,wz/8);
+          if(oNoise>0.4 && ly<35) b=BLOCKS.COAL_ORE;
+          else if(oNoise>0.38 && ly<25) b=BLOCKS.IRON_ORE;
+        }
+        else if(ly<h-1){
+          b=(biome===BIOME.DESERT)?BLOCKS.SAND:BLOCKS.DIRT;
+        }
+        else if(ly===h-1){
+          if(biome===BIOME.DESERT) b=BLOCKS.SAND;
+          else if(biome===BIOME.TAIGA) b=(h>38)?BLOCKS.SNOW_GRASS:BLOCKS.GRASS;
+          else if(biome===BIOME.MOUNTAINS) b=(h>50)?BLOCKS.SNOW_GRASS:(h>42?BLOCKS.STONE:BLOCKS.GRASS);
+          else b=BLOCKS.GRASS;
+        }
+
+        // Water fill
+        if(b===BLOCKS.AIR && ly<=WATER_LEVEL) b=BLOCKS.WATER;
+        data[blockIndex(lx,ly,lz)]=b;
+      }
+
+      // Snow cap on taiga/mountains
+      if((biome===BIOME.TAIGA||biome===BIOME.MOUNTAINS)&&h>42&&h<CHUNK_HEIGHT){
+        data[blockIndex(lx,h,lz)]=BLOCKS.SNOW;
+      }
+
+      // Surface features
+      const top=data[blockIndex(lx,h-1,lz)];
+      const rnd=((wx*374761393+wz*668265263)>>>0)/4294967295;
+      if(biome===BIOME.PLAINS&&top===BLOCKS.GRASS&&rnd<0.018&&lx>2&&lx<13&&lz>2&&lz<13)
+        trees.push([lx,h,lz,false]);
+      if(biome===BIOME.TAIGA&&top===BLOCKS.GRASS&&rnd<0.022&&lx>2&&lx<13&&lz>2&&lz<13)
+        trees.push([lx,h,lz,true]); // spruce
+      if(biome===BIOME.DESERT&&top===BLOCKS.SAND&&rnd<0.008&&lx>1&&lx<14&&lz>1&&lz<14)
+        cacti.push([lx,h,lz]);
+    }
+  }
+
+  // Plant trees
+  for(const[tx,ty,tz,isSpruce]of trees){
+    if(ty>=CHUNK_HEIGHT-8) continue;
+    const trH=isSpruce?(5+Math.floor(Math.random()*3)):(4+Math.floor(Math.random()*2));
+    for(let y=ty;y<ty+trH&&y<CHUNK_HEIGHT;y++) data[blockIndex(tx,y,tz)]=BLOCKS.WOOD;
+    if(isSpruce){
+      for(let dy=-2;dy<=1;dy++) for(let dx=-2;dx<=2;dx++) for(let dz=-2;dz<=2;dz++){
+        const lx2=tx+dx,ly2=ty+trH+dy,lz2=tz+dz;
+        if(lx2<0||lx2>=CHUNK_SIZE||lz2<0||lz2>=CHUNK_SIZE||ly2<0||ly2>=CHUNK_HEIGHT) continue;
+        const dist=Math.abs(dx)+Math.abs(dz)+(dy<0?1:2);
+        if(dist<=3&&!(dx===0&&dz===0)&&data[blockIndex(lx2,ly2,lz2)]===BLOCKS.AIR)
+          data[blockIndex(lx2,ly2,lz2)]=BLOCKS.LEAVES;
+      }
+    } else {
+      for(let dy=-1;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) for(let dz=-2;dz<=2;dz++){
+        const lx2=tx+dx,ly2=ty+trH+dy,lz2=tz+dz;
+        if(lx2<0||lx2>=CHUNK_SIZE||lz2<0||lz2>=CHUNK_SIZE||ly2<0||ly2>=CHUNK_HEIGHT) continue;
+        const dist=Math.abs(dx)+Math.abs(dz)+Math.abs(dy);
+        if(dist<=3&&!(dx===0&&dz===0&&dy<1)&&data[blockIndex(lx2,ly2,lz2)]===BLOCKS.AIR)
+          data[blockIndex(lx2,ly2,lz2)]=BLOCKS.LEAVES;
+      }
+    }
+  }
+  // Plant cacti
+  for(const[tx,ty,tz]of cacti){
+    const h2=2+Math.floor(Math.random()*2);
+    for(let y=ty;y<ty+h2&&y<CHUNK_HEIGHT;y++) data[blockIndex(tx,y,tz)]=BLOCKS.CACTUS;
+  }
+
+  world.set(chunkKey(cx,cz),data);
+}
+
+function getBlock(wx,wy,wz){
+  if(wy<0)return BLOCKS.BEDROCK;if(wy>=CHUNK_HEIGHT)return BLOCKS.AIR;
+  const cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE);
+  const lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;
+  return getChunk(cx,cz)[blockIndex(lx,wy,lz)];
+}
+function setBlock(wx,wy,wz,t){
+  if(wy<0||wy>=CHUNK_HEIGHT)return;
+  const cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE);
+  const lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;
+  getChunk(cx,cz)[blockIndex(lx,wy,lz)]=t;
+  dirtyChunks.add(chunkKey(cx,cz));
+  if(lx===0)dirtyChunks.add(chunkKey(cx-1,cz));
+  if(lx===CHUNK_SIZE-1)dirtyChunks.add(chunkKey(cx+1,cz));
+  if(lz===0)dirtyChunks.add(chunkKey(cx,cz-1));
+  if(lz===CHUNK_SIZE-1)dirtyChunks.add(chunkKey(cx,cz+1));
+}
+
+// ═══════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:false});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x87CEEB,0.012);
+
+const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.05,180);
+
+window.addEventListener('resize',()=>{
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ─── SKY ───
+const skyGeo=new THREE.SphereGeometry(160,16,8);
+skyGeo.scale(-1,1,1);
+const skyMat=new THREE.MeshBasicMaterial({color:0x87CEEB,side:THREE.BackSide,fog:false
