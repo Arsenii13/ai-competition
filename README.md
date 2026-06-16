@@ -4,8 +4,9 @@
 
 Multiple AI models were given the same task:
 
-> Build a playable voxel-based survival experience, starting from a minimal foundation and expanding toward Minecraft-like gameplay.>
-##View the results at https://github.com/Arsenii13/ai-competition/wiki/
+> Build a playable voxel-based survival experience, starting from a minimal foundation and expanding toward Minecraft-like gameplay.
+>
+## View the results at https://github.com/Arsenii13/ai-competition/wiki/
 
 ---
 
