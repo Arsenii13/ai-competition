@@ -33,8 +33,8 @@ Each model approached the problem differently:
 
 ## 🎮 Live Demo
 
-👉 **Play it here:**
-https://your-username.github.io/your-repo-name/
+👉 **Play the video from the best AI here:**
+https://arsenii13.github.io/ai-competition/Minecraft-web-pc/Recording 2026-06-16 170327.mp4
 
 ---
 
@@ -89,7 +89,9 @@ This approach prioritizes:
 
 ## 📸 Screenshots
 
-> *(Add gameplay screenshots here)*
+> ![screenshot](https://arsenii13.github.io/ai-competition/Minecraft-web-pc/Screenshot%202026-06-16%20165604.png)
+> ![screenshot](https://arsenii13.github.io/ai-competition/Minecraft-web-pc/Screenshot%202026-06-16%20165403.png)
+> ![screenshot](https://arsenii13.github.io/ai-competition/Minecraft-web-pc/Screenshot%202026-06-16%20165231.png)
 
 ---
 
