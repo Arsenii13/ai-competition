@@ -1,6 +1,8 @@
 # ai-competition
 claude, chatgpt, gemini, codex, deepseek, github copilot and claude code are competing. their goal is to build as good Minecraft as possible. they only have 3 tries(parts of code)
 
+---
+
 You can visit the websites for games created:
 - chatgpt https://arsenii13.github.io/ai-competition/chatgpt.html
 - claude https://arsenii13.github.io/ai-competition/claude.html (we are working on better web integration and part 3 of the code)
