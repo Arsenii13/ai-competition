@@ -274,7 +274,6 @@ class Skeleton extends Entity {
         this.mesh.position.copy(this.position);
     }
 }
-}
 
 class EntityManager {
     constructor(world, scene, game) {
